@@ -15,7 +15,7 @@
   --colw: 330px; --gap: 100px; --fs: 16.5px;
 }
 
-* { margin: 0; padding: 0; box-sizing: border-box; }
+* { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
 
 html, body { height: 100%; overflow: hidden; }
 
@@ -27,6 +27,18 @@ body {
   font-feature-settings: 'onum' 1, 'liga' 1, 'kern' 1;
   overflow: hidden;
   -webkit-font-smoothing: antialiased;
+  touch-action: manipulation;
+}
+
+/* on the small screen the page is the screen: no book chrome,
+   no stray text selection from navigation taps */
+body.solo {
+  -webkit-user-select: none;
+  user-select: none;
+}
+body.solo #stage {
+  padding-top: env(safe-area-inset-top, 0px);
+  padding-bottom: max(4px, env(safe-area-inset-bottom, 0px));
 }
 
 #stage {
@@ -54,7 +66,11 @@ body {
   transition: opacity 0.7s ease;
 }
 #book.ready { opacity: 1; }
-body.solo #book { width: var(--pw); }
+body.solo #book {
+  width: var(--pw);
+  border-radius: 0;
+  box-shadow: none;
+}
 
 .page {
   position: absolute;
@@ -201,6 +217,7 @@ body.solo #gutter { display: none; }
 
 .fullpage {
   height: 100%;
+  overflow: hidden;
   break-after: column;
   break-inside: avoid;
   display: flex;
@@ -269,24 +286,21 @@ body.solo #gutter { display: none; }
   margin: 0.2em 0 1.6em;
 }
 .toc {
-  display: flex;
-  gap: 2.4em;
   width: 100%;
   flex: 1;
+  min-height: 0;
   text-align: left;
 }
 .tcol {
-  flex: 1;
   min-width: 0;
   display: flex;
   flex-direction: column;
-  justify-content: space-between;
 }
 .tent {
   display: flex;
   align-items: baseline;
   font-size: 0.78em;
-  line-height: 1.5;
+  line-height: 1.6;
   color: var(--ink);
   text-decoration: none;
   cursor: pointer;
@@ -387,6 +401,7 @@ body.solo #gutter { display: none; }
 }
 .zone.prev { left: 0; }
 .zone.next { right: 0; }
+body.solo .zone { display: none; }
 
 /* ——— fore-edge riffle bar ——— */
 
@@ -404,7 +419,8 @@ body.solo #gutter { display: none; }
     0 3px 9px -2px rgba(0, 0, 0, 0.5);
   touch-action: none;
 }
-body.solo #edge { width: calc(var(--pw) - 12px); }
+body.solo #edge { width: calc(var(--pw) - 24px); height: 15px; margin-top: 9px; }
+body.solo #ribbon { height: 21px; }
 
 #ribbon {
   position: absolute;
@@ -483,6 +499,7 @@ body.solo #edge { width: calc(var(--pw) - 12px); }
   user-select: none;
 }
 #hint.dim { opacity: 0.18; }
+body.solo #hint { margin-top: 8px; font-size: 11px; }
 
 @media (prefers-reduced-motion: reduce) {
   #book { transition: none; }

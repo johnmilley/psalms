@@ -9,7 +9,6 @@ var ORD = [null, 'First', 'Second', 'Third', 'Fourth', 'Fifth', 'Sixth',
   'Twenty-fourth', 'Twenty-fifth', 'Twenty-sixth', 'Twenty-seventh',
   'Twenty-eighth', 'Twenty-ninth', 'Thirtieth'];
 
-var FRONT_PAGES = 5;            // flyleaf, title, table i–iii
 var REDUCED = matchMedia('(prefers-reduced-motion: reduce)').matches;
 
 function esc(s) { return s.replace(/&/g, '&amp;').replace(/</g, '&lt;'); }
@@ -18,7 +17,7 @@ function esc(s) { return s.replace(/&/g, '&amp;').replace(/</g, '&lt;'); }
 
 function verseHTML(v) {
   var h = '<p class="v"><span class="vn">' + v.v + '</span>' + esc(v.a);
-  if (v.b) h += ' <span class="st">*</span> ' + esc(v.b);
+  if (v.b) h += ' <span class="st">:</span> ' + esc(v.b);
   return h + '</p>';
 }
 
@@ -29,7 +28,7 @@ function tableEntry(p) {
     '</span><span class="dots"></span><span class="tp"></span></a>';
 }
 
-function buildFlowHTML() {
+function buildFlowHTML(perPage) {
   var parts = [];
   parts.push('<div class="fullpage fly"><div class="flycross">&#10016;</div></div>');
   parts.push('<div class="fullpage titlepage">' +
@@ -42,18 +41,15 @@ function buildFlowHTML() {
     '<p class="tp-year">MDXXXV</p>' +
     '</div>');
 
-  for (var pg = 0; pg < 3; pg++) {
-    var t = '<div class="fullpage tablepage"><h3 class="thead">The Table</h3><div class="toc">';
-    for (var c = 0; c < 2; c++) {
-      t += '<div class="tcol">';
-      for (var i = 0; i < 25; i++) {
-        var n = pg * 50 + c * 25 + i;
-        if (n < 150) t += tableEntry(PSALTER[n]);
-      }
-      t += '</div>';
-    }
-    parts.push(t + '</div></div>');
+  var tablePages = Math.ceil(150 / perPage);
+  for (var pg = 0; pg < tablePages; pg++) {
+    var t = '<div class="fullpage tablepage"><h3 class="thead">The Table</h3>' +
+      '<div class="toc"><div class="tcol">';
+    var top = Math.min((pg + 1) * perPage, 150);
+    for (var i = pg * perPage; i < top; i++) t += tableEntry(PSALTER[i]);
+    parts.push(t + '</div></div></div>');
   }
+  frontPages = 2 + tablePages;   // flyleaf, title, table i–n
 
   var lastKey = '';
   PSALTER.forEach(function (p) {
@@ -114,46 +110,72 @@ var R = makePage(document.getElementById('pageR'));
 var F = makePage(leaf.querySelector('.face.front'));
 var B = makePage(leaf.querySelector('.face.back'));
 
-var FLOW_HTML = buildFlowHTML();
-[L, R, F, B].forEach(function (c) { c.flow.innerHTML = FLOW_HTML; });
-
 /* ——— geometry & pagination ——— */
 
-var solo = false, colStep = 0, pages = 1, maxLeft = 0, cur = 0;
+var solo = false, colStep = 0, pages = 1, maxLeft = 0, cur = 0, dest = 0;
+var frontPages = 5, tablePer = 0, builtPer = 0;
 var heads = [], firstOn = [], startPage = {};
-var animating = false, pending = null;
+var animating = false, pending = null, flipDone = null;
+
+/* measures env(safe-area-inset-*) so the full-bleed page avoids the notch */
+var saProbe = document.createElement('div');
+saProbe.style.cssText = 'position:fixed;left:-9999px;top:0;visibility:hidden;' +
+  'pointer-events:none;padding-top:env(safe-area-inset-top);' +
+  'padding-bottom:env(safe-area-inset-bottom)';
+document.body.appendChild(saProbe);
 
 function computeGeometry() {
   var vw = innerWidth, vh = innerHeight;
   solo = vw < 820;
   document.body.classList.toggle('solo', solo);
   hint.innerHTML = solo
-    ? 'swipe to turn the page&emsp;&middot;&emsp;riffle the page&#8209;edge below'
+    ? 'swipe or tap the sides&emsp;&middot;&emsp;riffle the bar below'
     : '&#8592;&#8201;&#8594;&ensp;turn the page&emsp;&middot;&emsp;riffle the ' +
       'page&#8209;edge&emsp;&middot;&emsp;type a psalm number&emsp;&middot;&emsp;T&ensp;the table';
-  var availH = Math.max(360, vh - 112);
-  var availW = solo ? vw - 28 : vw - 96;
-  var ph = Math.min(availH, 1020);
-  var pw = Math.round(ph * 0.68);
-  var maxPw = solo ? availW : Math.floor(availW / 2);
-  if (pw > maxPw) { pw = maxPw; ph = Math.min(availH, Math.round(pw / 0.68)); }
-  pw = Math.max(pw, 250);
-  var fs = Math.min(19, Math.max(13, pw / 25.5));
-  var padh = Math.round(pw * 0.115);
-  var porttop = Math.round(ph * 0.105);
-  var padbot = Math.round(ph * 0.094);
+  var pw, ph;
+  if (solo) {
+    /* full-bleed: the page is the screen, save a strip for the riffle bar */
+    var sa = getComputedStyle(saProbe);
+    var insets = (parseFloat(sa.paddingTop) || 0) + (parseFloat(sa.paddingBottom) || 0);
+    pw = vw;
+    ph = Math.max(300, vh - 60 - insets);
+  } else {
+    var availH = Math.max(360, vh - 112);
+    var availW = vw - 96;
+    ph = Math.min(availH, 1020);
+    pw = Math.round(ph * 0.68);
+    var maxPw = Math.floor(availW / 2);
+    if (pw > maxPw) { pw = maxPw; ph = Math.min(availH, Math.round(pw / 0.68)); }
+    pw = Math.max(pw, 250);
+  }
+  var fs = solo ? Math.min(18, Math.max(14.5, pw / 24))
+                : Math.min(19, Math.max(13, pw / 25.5));
+  var padh = solo ? Math.max(18, Math.round(pw * 0.07)) : Math.round(pw * 0.115);
+  var porttop = solo ? Math.round(fs * 3.4) : Math.round(ph * 0.105);
+  var padbot = solo ? Math.round(fs * 2.8) : Math.round(ph * 0.094);
   var colw = pw - 2 * padh;
   var gap = 2 * padh;
   colStep = colw + gap;
+  var flowh = ph - porttop - padbot;
+  /* how many table entries fit on a page: heading ≈ 3.2em, entry ≈ 0.78em × 1.6 */
+  tablePer = Math.max(8, Math.min(30,
+    Math.floor((flowh - 3.2 * fs - 6) / (fs * 0.78 * 1.6))));
   var st = document.documentElement.style;
   st.setProperty('--pw', pw + 'px');
   st.setProperty('--ph', ph + 'px');
   st.setProperty('--padh', padh + 'px');
   st.setProperty('--porttop', porttop + 'px');
-  st.setProperty('--flowh', (ph - porttop - padbot) + 'px');
+  st.setProperty('--flowh', flowh + 'px');
   st.setProperty('--colw', colw + 'px');
   st.setProperty('--gap', gap + 'px');
   st.setProperty('--fs', fs.toFixed(2) + 'px');
+}
+
+function ensureFlow() {
+  if (tablePer === builtPer) return;
+  builtPer = tablePer;
+  var html = buildFlowHTML(tablePer);
+  [L, R, F, B].forEach(function (c) { c.flow.innerHTML = html; });
 }
 
 function paginate() {
@@ -194,20 +216,20 @@ function paginate() {
   // fill the Table with folio numbers
   document.querySelectorAll('.tent').forEach(function (a) {
     var sp = startPage[+a.dataset.ps];
-    a.querySelector('.tp').textContent = sp != null ? (sp - FRONT_PAGES + 1) : '';
+    a.querySelector('.tp').textContent = sp != null ? (sp - frontPages + 1) : '';
   });
 }
 
 function setPage(c, p) {
   c.flow.style.transform = 'translateX(' + (-p * colStep) + 'px)';
-  var inBody = p >= FRONT_PAGES && p < pages;
+  var inBody = p >= frontPages && p < pages;
   c.head.textContent = inBody ? heads[p] : '';
-  c.folio.textContent = inBody ? String(p - FRONT_PAGES + 1) : '';
+  c.folio.textContent = inBody ? String(p - frontPages + 1) : '';
 }
 
 function labelFor(p) {
   if (p <= 1) return 'Title';
-  if (p < FRONT_PAGES) return 'The Table';
+  if (p < frontPages) return 'The Table';
   return heads[p] || 'Psalm 150';
 }
 
@@ -234,8 +256,7 @@ function snap(p) {
   return p;
 }
 
-function jump(p) { cur = snap(p); paint(); }
-
+function jump(p) { cur = dest = snap(p); paint(); }
 
 function flip(p) {
   animating = true;
@@ -260,20 +281,28 @@ function flip(p) {
   var done = function () {
     if (settled) return;
     settled = true;
+    flipDone = null;
     leaf.classList.remove('on', 'turning');
     leaf.style.transition = 'none';
     animating = false;
     cur = p;
-    paint();
-    if (pending !== null) { var t = pending; pending = null; setSpread(t, false); }
+    var t = pending;
+    pending = null;
+    if (t !== null && t !== p) jump(t);
+    else paint();
   };
+  flipDone = done;
   leaf.addEventListener('transitionend', done, { once: true });
   setTimeout(done, 600);
 }
 
+/* settle any in-flight turn immediately (e.g. before re-measuring) */
+function cancelFlip() { if (flipDone) flipDone(); }
+
 function setSpread(p, anim) {
   p = snap(p);
-  if (p === cur) return;
+  if (p === dest) return;
+  dest = p;
   if (animating) { pending = p; return; }
   if (anim && !solo && !REDUCED && Math.abs(p - cur) === 2) flip(p);
   else jump(p);
@@ -287,11 +316,14 @@ function gotoPsalm(n, anim) {
 /* ——— layout ——— */
 
 function layout(preserveAnchor) {
-  var anchor = (preserveAnchor && cur >= FRONT_PAGES) ? firstOn[cur] : 0;
+  cancelFlip();
+  var anchor = (preserveAnchor && cur >= frontPages) ? firstOn[cur] : 0;
   computeGeometry();
+  ensureFlow();
   paginate();
   if (anchor && startPage[anchor] != null) cur = snap(startPage[anchor]);
   else cur = snap(cur);
+  dest = cur;
   paint();
   book.classList.add('ready');
 }
@@ -299,15 +331,24 @@ function layout(preserveAnchor) {
 /* ——— input ——— */
 
 document.getElementById('zoneNext').addEventListener('click', function () {
-  setSpread(cur + (solo ? 1 : 2), true);
+  setSpread(dest + (solo ? 1 : 2), true);
 });
 document.getElementById('zonePrev').addEventListener('click', function () {
-  setSpread(cur - (solo ? 1 : 2), true);
+  setSpread(dest - (solo ? 1 : 2), true);
 });
 
+/* taps: table entries everywhere; on the small screen the side thirds
+   of the page turn it, the middle is inert so reading can't misfire */
+var swallowClick = false;
 book.addEventListener('click', function (e) {
+  if (swallowClick) { swallowClick = false; return; }
   var a = e.target.closest && e.target.closest('.tent');
-  if (a) { e.preventDefault(); gotoPsalm(+a.dataset.ps, false); }
+  if (a) { e.preventDefault(); gotoPsalm(+a.dataset.ps, false); return; }
+  if (!solo) return;
+  var r = book.getBoundingClientRect();
+  var x = (e.clientX - r.left) / r.width;
+  if (x < 0.35) setSpread(dest - 1, true);
+  else if (x > 0.65) setSpread(dest + 1, true);
 });
 
 /* keyboard */
@@ -339,10 +380,10 @@ document.addEventListener('keydown', function (e) {
   var step = solo ? 1 : 2;
   switch (e.key) {
     case 'ArrowRight': case 'PageDown': case ' ':
-      setSpread(cur + step * (e.shiftKey ? 10 : 1), !e.repeat && !e.shiftKey);
+      setSpread(dest + step * (e.shiftKey ? 10 : 1), !e.repeat && !e.shiftKey);
       e.preventDefault(); break;
     case 'ArrowLeft': case 'PageUp':
-      setSpread(cur - step * (e.shiftKey ? 10 : 1), !e.repeat && !e.shiftKey);
+      setSpread(dest - step * (e.shiftKey ? 10 : 1), !e.repeat && !e.shiftKey);
       e.preventDefault(); break;
     case 'Home': setSpread(0, false); e.preventDefault(); break;
     case 'End': setSpread(maxLeft, false); e.preventDefault(); break;
@@ -360,19 +401,27 @@ addEventListener('wheel', function (e) {
   var d = Math.abs(e.deltaX) > Math.abs(e.deltaY) ? e.deltaX : e.deltaY;
   if (Math.abs(d) < 4) return;
   lastWheel = now;
-  setSpread(cur + (d > 0 ? 1 : -1) * (solo ? 1 : 2), true);
+  setSpread(dest + (d > 0 ? 1 : -1) * (solo ? 1 : 2), true);
 }, { passive: true });
 
 /* touch swipe across the book */
-var touchX = null;
+var touchX = null, touchY = null;
 book.addEventListener('pointerdown', function (e) {
-  if (e.pointerType === 'touch') touchX = e.clientX;
+  if (e.pointerType === 'touch') {
+    touchX = e.clientX; touchY = e.clientY;
+    swallowClick = false;
+  }
 });
 book.addEventListener('pointerup', function (e) {
   if (e.pointerType !== 'touch' || touchX === null) return;
-  var dx = e.clientX - touchX; touchX = null;
-  if (Math.abs(dx) > 44) setSpread(cur + (dx < 0 ? 1 : -1) * (solo ? 1 : 2), true);
+  var dx = e.clientX - touchX, dy = e.clientY - touchY;
+  touchX = touchY = null;
+  if (Math.abs(dx) > 44 && Math.abs(dx) > Math.abs(dy)) {
+    swallowClick = true;
+    setSpread(dest + (dx < 0 ? 1 : -1) * (solo ? 1 : 2), true);
+  }
 });
+book.addEventListener('pointercancel', function () { touchX = touchY = null; });
 
 /* fore-edge riffle */
 var riffling = false;
