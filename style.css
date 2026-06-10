@@ -1,0 +1,507 @@
+/* ————————————————————————————————————————————————
+   The Psalms of David — Coverdale Psalter
+   after the manner of Divine Worship: Daily Office
+   ———————————————————————————————————————————————— */
+
+:root {
+  --paper: #f8f2e2;
+  --paper-deep: #efe6cd;
+  --ink: #2a261d;
+  --red: #a32c1c;
+  --faint: rgba(42, 38, 29, 0.55);
+  /* geometry set from JS */
+  --pw: 430px; --ph: 640px;
+  --padh: 50px; --porttop: 66px; --flowh: 480px;
+  --colw: 330px; --gap: 100px; --fs: 16.5px;
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+html, body { height: 100%; overflow: hidden; }
+
+body {
+  background:
+    radial-gradient(120% 90% at 50% 38%, #262a31 0%, #1b1e24 55%, #121419 100%);
+  color: var(--ink);
+  font-family: 'EB Garamond', Georgia, 'Times New Roman', serif;
+  font-feature-settings: 'onum' 1, 'liga' 1, 'kern' 1;
+  overflow: hidden;
+  -webkit-font-smoothing: antialiased;
+}
+
+#stage {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+/* ——— the book ——— */
+
+#book {
+  position: relative;
+  width: calc(var(--pw) * 2);
+  height: var(--ph);
+  background: var(--paper);
+  border-radius: 4px;
+  box-shadow:
+    0 1px 0 rgba(255, 252, 240, 0.06),
+    0 24px 70px -18px rgba(0, 0, 0, 0.65),
+    0 8px 22px -8px rgba(0, 0, 0, 0.5);
+  perspective: calc(var(--pw) * 4.5);
+  opacity: 0;
+  transition: opacity 0.7s ease;
+}
+#book.ready { opacity: 1; }
+body.solo #book { width: var(--pw); }
+
+.page {
+  position: absolute;
+  top: 0;
+  width: var(--pw);
+  height: 100%;
+}
+#pageL { left: 0; }
+#pageR { right: 0; }
+body.solo #pageL { display: none; }
+
+/* light falling across the opened spread */
+#pageL::after, #pageR::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  border-radius: 4px 0 0 4px;
+  background: linear-gradient(90deg, rgba(70, 50, 25, 0.05), rgba(70, 50, 25, 0) 12%);
+}
+#pageR::after {
+  border-radius: 0 4px 4px 0;
+  background: linear-gradient(-90deg, rgba(70, 50, 25, 0.05), rgba(70, 50, 25, 0) 12%);
+}
+body.solo #pageR::after { display: none; }
+
+#gutter {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 2;
+  background: linear-gradient(90deg,
+    rgba(60, 42, 18, 0) 44%,
+    rgba(60, 42, 18, 0.07) 49.2%,
+    rgba(60, 42, 18, 0.14) 50%,
+    rgba(60, 42, 18, 0.07) 50.8%,
+    rgba(60, 42, 18, 0) 56%);
+}
+body.solo #gutter { display: none; }
+
+/* ——— page anatomy ——— */
+
+.phead {
+  position: absolute;
+  left: var(--padh); right: var(--padh);
+  top: calc(var(--porttop) * 0.42);
+  text-align: center;
+  font-size: calc(var(--fs) * 0.72);
+  letter-spacing: 0.22em;
+  font-feature-settings: 'smcp' 1, 'onum' 1;
+  color: rgba(42, 38, 29, 0.78);
+  white-space: nowrap;
+  overflow: hidden;
+}
+
+.folio {
+  position: absolute;
+  left: var(--padh); right: var(--padh);
+  bottom: calc(var(--porttop) * 0.40);
+  text-align: center;
+  font-size: calc(var(--fs) * 0.8);
+  color: rgba(42, 38, 29, 0.7);
+}
+
+.port {
+  position: absolute;
+  left: var(--padh);
+  top: var(--porttop);
+  width: var(--colw);
+  height: var(--flowh);
+  overflow: hidden;
+}
+
+.flow {
+  position: relative;
+  width: var(--colw);
+  height: var(--flowh);
+  column-width: var(--colw);
+  column-gap: var(--gap);
+  column-fill: auto;
+  font-size: var(--fs);
+  line-height: 1.52;
+  will-change: transform;
+}
+
+/* ——— psalter typography ——— */
+
+.keep { break-inside: avoid; }
+
+.day {
+  text-align: center;
+  color: var(--red);
+  font-size: 0.8em;
+  letter-spacing: 0.16em;
+  font-feature-settings: 'smcp' 1, 'onum' 1;
+  margin: 2em 0 1.4em;
+}
+.day:first-child { margin-top: 0; }
+
+.psn {
+  text-align: center;
+  color: var(--red);
+  font-weight: 500;
+  font-size: 1.04em;
+  letter-spacing: 0.18em;
+  font-feature-settings: 'smcp' 1, 'onum' 1;
+  margin: 1.7em 0 0.15em;
+}
+.day + .psn, .keep > .psn:first-child { margin-top: 0; }
+
+.inc {
+  text-align: center;
+  font-style: italic;
+  font-size: 0.95em;
+  margin: 0 0 0.85em;
+}
+
+.sinc {
+  text-align: center;
+  font-style: italic;
+  font-size: 0.95em;
+  margin: 1.3em 0 0.7em;
+}
+.day + .sinc { margin-top: 0; }
+
+.v {
+  margin: 0 0 0.4em;
+  padding-left: 1.5em;
+  text-indent: -1.5em;
+  text-align: justify;
+  hyphens: auto;
+  -webkit-hyphens: auto;
+}
+
+.vn {
+  color: var(--red);
+  font-size: 0.78em;
+  padding-right: 0.55em;
+}
+
+.st { padding: 0 0.05em; }
+
+/* ——— front matter ——— */
+
+.fullpage {
+  height: 100%;
+  break-after: column;
+  break-inside: avoid;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+}
+
+.flycross {
+  color: rgba(163, 44, 28, 0.5);
+  font-size: 1.3em;
+}
+
+.titlepage .tp-cross {
+  color: var(--red);
+  font-size: 1.5em;
+  margin-bottom: 2.2em;
+}
+.titlepage h1 {
+  color: var(--red);
+  font-weight: 500;
+  font-size: 1.95em;
+  line-height: 1.55;
+  letter-spacing: 0.3em;
+  text-indent: 0.3em; /* balance the trailing letter-space */
+  margin-bottom: 1.1em;
+}
+.rule {
+  width: 5.5em;
+  height: 1px;
+  background: rgba(42, 38, 29, 0.4);
+  margin: 0 auto 1.4em;
+}
+.rule.short { width: 3em; }
+.tp-sub {
+  font-style: italic;
+  font-size: 0.98em;
+  line-height: 1.7;
+  margin-bottom: 1.5em;
+}
+.tp-tr {
+  font-size: 0.9em;
+  line-height: 2;
+  margin-bottom: 2.6em;
+}
+.tp-tr b {
+  display: block;
+  font-weight: 500;
+  letter-spacing: 0.2em;
+  font-feature-settings: 'smcp' 1;
+}
+.tp-year {
+  font-size: 0.85em;
+  letter-spacing: 0.25em;
+  color: var(--faint);
+}
+
+.tablepage { justify-content: flex-start; }
+.thead {
+  color: var(--red);
+  font-weight: 500;
+  font-size: 1em;
+  letter-spacing: 0.22em;
+  font-feature-settings: 'smcp' 1;
+  margin: 0.2em 0 1.6em;
+}
+.toc {
+  display: flex;
+  gap: 2.4em;
+  width: 100%;
+  flex: 1;
+  text-align: left;
+}
+.tcol {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+.tent {
+  display: flex;
+  align-items: baseline;
+  font-size: 0.78em;
+  line-height: 1.5;
+  color: var(--ink);
+  text-decoration: none;
+  cursor: pointer;
+  min-width: 0;
+}
+.tent .tn {
+  width: 2em;
+  flex: none;
+  text-align: right;
+  margin-right: 0.7em;
+  color: var(--red);
+}
+.tent .ti {
+  font-style: italic;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+}
+.tent .dots {
+  flex: 1;
+  min-width: 0.8em;
+  margin: 0 0.4em;
+  border-bottom: 1px dotted rgba(42, 38, 29, 0.4);
+  transform: translateY(-0.32em);
+}
+.tent .tp { color: var(--faint); flex: none; }
+.tent:hover .ti, .tent:hover .tn { color: #c4402a; }
+
+.colophon .end-cross {
+  color: var(--red);
+  font-size: 1.2em;
+  margin-bottom: 1.8em;
+}
+.colophon .end-line {
+  font-style: italic;
+  font-size: 1.05em;
+  margin-bottom: 2em;
+}
+.colophon .end-note {
+  font-size: 0.82em;
+  font-style: italic;
+  color: var(--faint);
+  line-height: 1.8;
+  max-width: 17em;
+}
+
+/* ——— the turning leaf ——— */
+
+#leaf {
+  position: absolute;
+  top: 0;
+  left: 50%;
+  width: var(--pw);
+  height: 100%;
+  transform-origin: left center;
+  transform-style: preserve-3d;
+  z-index: 5;
+  pointer-events: none;
+  display: none;
+}
+#leaf.on { display: block; }
+
+#leaf .face {
+  position: absolute;
+  inset: 0;
+  background: var(--paper);
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+  overflow: hidden;
+}
+#leaf .face.front { border-radius: 0 4px 4px 0; }
+#leaf .face.back  { transform: rotateY(180deg); border-radius: 4px 0 0 4px; }
+
+#leaf .face::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(90deg, rgba(50, 34, 12, 0.16), rgba(50, 34, 12, 0) 26%);
+  opacity: 0;
+  transition: opacity 0.45s ease;
+}
+#leaf .face.back::after {
+  background: linear-gradient(-90deg, rgba(50, 34, 12, 0.16), rgba(50, 34, 12, 0) 26%);
+}
+#leaf.turning .face::after { opacity: 1; }
+
+/* ——— click zones (outer margins only — text stays selectable) ——— */
+
+.zone {
+  position: absolute;
+  top: 0;
+  height: 100%;
+  width: calc(var(--padh) * 0.9);
+  z-index: 3;
+  cursor: pointer;
+}
+.zone.prev { left: 0; }
+.zone.next { right: 0; }
+
+/* ——— fore-edge riffle bar ——— */
+
+#edge {
+  position: relative;
+  width: calc(var(--pw) * 2 - 26px);
+  height: 11px;
+  margin-top: 13px;
+  border-radius: 2px;
+  cursor: pointer;
+  background: repeating-linear-gradient(90deg,
+    #c9bd9f 0, #c9bd9f 1px, #e9e0c6 1px, #e9e0c6 3px);
+  box-shadow:
+    inset 0 1px 2px rgba(0, 0, 0, 0.28),
+    0 3px 9px -2px rgba(0, 0, 0, 0.5);
+  touch-action: none;
+}
+body.solo #edge { width: calc(var(--pw) - 12px); }
+
+#ribbon {
+  position: absolute;
+  top: -3px;
+  width: 3px;
+  height: 17px;
+  background: var(--red);
+  border-radius: 1px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
+  pointer-events: none;
+  left: 0;
+}
+
+#etip {
+  position: fixed;
+  display: none;
+  transform: translate(-50%, -130%);
+  background: var(--paper);
+  color: var(--ink);
+  font-size: 13px;
+  letter-spacing: 0.12em;
+  font-feature-settings: 'smcp' 1, 'onum' 1;
+  padding: 0.3em 0.85em 0.35em;
+  border-radius: 2px;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.45);
+  white-space: nowrap;
+  pointer-events: none;
+  z-index: 20;
+}
+#etip.on { display: block; }
+
+/* ——— go to psalm ——— */
+
+#goto {
+  position: fixed;
+  left: 50%;
+  bottom: 12vh;
+  transform: translateX(-50%);
+  display: none;
+  align-items: baseline;
+  gap: 0.6em;
+  background: var(--paper);
+  padding: 0.55em 1.3em 0.65em;
+  border-radius: 2px;
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.5);
+  z-index: 30;
+}
+#goto.on { display: flex; }
+#goto .g-label {
+  font-size: 15px;
+  letter-spacing: 0.18em;
+  font-feature-settings: 'smcp' 1;
+  color: var(--red);
+}
+#goto .g-num {
+  font-size: 21px;
+  min-width: 1.6em;
+  border-bottom: 1px solid rgba(42, 38, 29, 0.45);
+  text-align: center;
+}
+
+/* ——— hint ——— */
+
+#hint {
+  margin-top: 13px;
+  padding: 0 1em;
+  max-width: 100vw;
+  white-space: nowrap;
+  overflow: hidden;
+  font-size: 12.5px;
+  letter-spacing: 0.14em;
+  font-feature-settings: 'smcp' 1;
+  color: rgba(233, 224, 198, 0.42);
+  text-align: center;
+  transition: opacity 1.2s ease;
+  user-select: none;
+}
+#hint.dim { opacity: 0.18; }
+
+@media (prefers-reduced-motion: reduce) {
+  #book { transition: none; }
+}
+
+/* ——— print: plain continuous text ——— */
+
+@media print {
+  body { background: #fff; overflow: visible; }
+  #stage { display: block; height: auto; }
+  #book { width: auto; height: auto; box-shadow: none; opacity: 1; background: #fff; }
+  #pageR, #gutter, #leaf, .zone, #edge, #etip, #goto, #hint { display: none !important; }
+  #pageL { position: static; width: auto; height: auto; }
+  #pageL .port { position: static; width: auto; height: auto; overflow: visible; }
+  #pageL .flow {
+    width: auto; height: auto;
+    column-width: auto; column-count: 1;
+    transform: none !important;
+  }
+  #pageL .phead, #pageL .folio { display: none; }
+  .fullpage { height: auto; padding: 3em 0; }
+}
