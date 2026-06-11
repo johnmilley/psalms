@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>The Psalms of David</title>
+<!-- print source for psalms.pdf — render with build/make_pdf.sh -->
+<link href="https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400;0,500;0,600;1,400;1,500&display=swap" rel="stylesheet">
+<style>
+@page {
+  size: 139.7mm 215.9mm; /* 5.5 × 8.5 in */
+  margin: 20mm 17mm 19mm;
+  @bottom-center { content: counter(page); font-family: 'EB Garamond', Georgia, serif; font-size: 9.5pt; color: #4a443a; }
+}
+@page :first { @bottom-center { content: none; } }
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+  font-family: 'EB Garamond', Georgia, 'Times New Roman', serif;
+  font-weight: 500;
+  font-size: 11pt;
+  line-height: 1.52;
+  color: #2a261d;
+  font-feature-settings: 'onum' 1, 'liga' 1, 'kern' 1;
+}
+
+.keep { break-inside: avoid; }
+
+.titlepage {
+  height: 168mm;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  break-after: page;
+}
+.tp-cross { color: #a32c1c; font-size: 16pt; margin-bottom: 2.2em; }
+.titlepage h1 {
+  color: #a32c1c;
+  font-weight: 500;
+  font-size: 21pt;
+  line-height: 1.55;
+  letter-spacing: 0.3em;
+  text-indent: 0.3em;
+  margin-bottom: 1.1em;
+}
+.rule { width: 5.5em; height: 1px; background: rgba(42, 38, 29, 0.4); margin: 0 auto 1.4em; }
+.rule.short { width: 3em; }
+.tp-sub { font-style: italic; font-size: 10.5pt; line-height: 1.7; margin-bottom: 1.5em; }
+.tp-tr { font-size: 10pt; line-height: 2; margin-bottom: 2.6em; }
+.tp-tr b { display: block; font-weight: 500; letter-spacing: 0.2em; font-feature-settings: 'smcp' 1; }
+.tp-year { font-size: 9pt; letter-spacing: 0.25em; color: rgba(42, 38, 29, 0.55); }
+
+.day {
+  text-align: center;
+  color: #a32c1c;
+  font-size: 8.5pt;
+  letter-spacing: 0.16em;
+  font-feature-settings: 'smcp' 1, 'onum' 1;
+  margin: 2em 0 1.4em;
+}
+.psn {
+  text-align: center;
+  color: #a32c1c;
+  font-weight: 500;
+  font-size: 11.5pt;
+  letter-spacing: 0.18em;
+  font-feature-settings: 'smcp' 1, 'onum' 1;
+  margin: 1.7em 0 0.15em;
+}
+.day + .psn { margin-top: 0; }
+.inc { text-align: center; font-style: italic; font-size: 10.5pt; margin: 0 0 0.85em; }
+.sinc { text-align: center; font-style: italic; font-size: 10.5pt; margin: 1.3em 0 0.7em; }
+.day + .sinc { margin-top: 0; }
+
+.v { --hang: 1.5em; margin: 0 0 0.4em; font-weight: 400; text-align: justify; }
+.v.d1 { --hang: 1.1em; }
+.v.d2 { --hang: 1.5em; }
+.v.d3 { --hang: 1.9em; }
+.v.v1 { --hang: 0em; }
+
+/* pointed for the office: the verse breaks at the colon, both halves
+   beginning where the first word does; turned lines fall in 1em */
+.v .ha, .v .hb { display: block; padding-left: calc(var(--hang) + 1em); }
+.v .ha { text-indent: calc(-1em - var(--hang)); }
+.v .hb { text-indent: -1em; }
+
+/* verse 1: lines fall flush at the cap's edge, never under it */
+.v.v1 .ha, .v.v1 .hb { padding-left: 0; text-indent: 0; }
+@supports (text-indent: 1em hanging) {
+  .v.v1 .hb { text-indent: 1em hanging; }
+}
+
+.vn {
+  display: inline-block;
+  text-indent: 0;
+  color: #a32c1c;
+  font-size: 8.5pt;
+  padding-right: 0.55em;
+  font-weight: 500;
+  width: calc(var(--hang) / 0.773);
+}
+
+/* the versal: verse 1 opens with a two-line red initial in place of its number */
+.dcap {
+  float: left;
+  color: #a32c1c;
+  font-size: 3.3em;
+  line-height: 1;
+  margin-top: -0.04em;
+  margin-bottom: -0.1em;
+  padding-right: 0.05em;
+  text-indent: 0;
+}
+.dcw { text-transform: uppercase; letter-spacing: 0.04em; }
+
+.st { padding: 0 0.05em; }
+
+.colophon {
+  height: 150mm;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  break-before: page;
+}
+.end-cross { color: #a32c1c; font-size: 13pt; margin-bottom: 1.8em; }
+.end-line { font-style: italic; font-size: 11.5pt; margin-bottom: 2em; }
+.end-note { font-size: 9pt; font-style: italic; color: rgba(42, 38, 29, 0.55); line-height: 1.8; max-width: 17em; }
+</style>
+</head>
+<body>
+<script src="../psalms.js"></script>
+<script>
+(function () {
+  'use strict';
+  var ORD = [null, 'First', 'Second', 'Third', 'Fourth', 'Fifth', 'Sixth',
+    'Seventh', 'Eighth', 'Ninth', 'Tenth', 'Eleventh', 'Twelfth', 'Thirteenth',
+    'Fourteenth', 'Fifteenth', 'Sixteenth', 'Seventeenth', 'Eighteenth',
+    'Nineteenth', 'Twentieth', 'Twenty-first', 'Twenty-second', 'Twenty-third',
+    'Twenty-fourth', 'Twenty-fifth', 'Twenty-sixth', 'Twenty-seventh',
+    'Twenty-eighth', 'Twenty-ninth', 'Thirtieth'];
+
+  function esc(s) { return s.replace(/&/g, '&amp;').replace(/</g, '&lt;'); }
+
+  function verseHTML(v) {
+    var d = v.v >= 100 ? 3 : v.v >= 10 ? 2 : 1;
+    var h;
+    if (v.v === 1) {
+      /* the versal word: first word in capitals; if it is a lone "O",
+         the word after it as well */
+      var first = v.a.match(/^\S+/)[0];
+      var capsLen = first.length;
+      if (first.replace(/[^A-Za-z]/g, '').length === 1) {
+        var next = v.a.slice(capsLen).match(/^\s+\S+/);
+        if (next) capsLen += next[0].length;
+      }
+      h = '<p class="v v1"><span class="ha"><span class="dcap">' + esc(v.a.charAt(0)) +
+        '</span><span class="dcw">' + esc(v.a.slice(1, capsLen)) + '</span>' +
+        esc(v.a.slice(capsLen));
+    } else {
+      h = '<p class="v d' + d + '"><span class="ha"><span class="vn">' + v.v + '.</span>' + esc(v.a);
+    }
+    if (v.b) h += '&nbsp;<span class="st">:</span></span><span class="hb">' + esc(v.b) + '</span>';
+    else h += '</span>';
+    return h + '</p>';
+  }
+
+  var parts = [];
+  parts.push('<div class="titlepage">' +
+    '<div class="tp-cross">&#10016;</div>' +
+    '<h1>THE PSALMS<br>OF DAVID</h1>' +
+    '<div class="rule"></div>' +
+    '<p class="tp-sub">Pointed as they are to be<br>said or sung in churches</p>' +
+    '<div class="rule short"></div>' +
+    '<p class="tp-tr">after the translation of<br><b>Miles Coverdale</b></p>' +
+    '<p class="tp-year">MDXXXV</p>' +
+    '</div>');
+
+  var lastKey = '';
+  PSALTER.forEach(function (p) {
+    p.sections.forEach(function (s, si) {
+      var keep = '<div class="keep">';
+      var key = s.day + '/' + s.hour;
+      if (key !== lastKey) {
+        keep += '<div class="day">The ' + ORD[s.day] + ' Day &nbsp;&middot;&nbsp; ' +
+          s.hour + ' Prayer</div>';
+        lastKey = key;
+      }
+      if (si === 0) {
+        keep += '<h2 class="psn">Psalm ' + p.n + '</h2>';
+        if (p.latin) keep += '<div class="inc">' + esc(p.latin) + '</div>';
+      } else if (s.latin) {
+        keep += '<div class="sinc">' + esc(s.latin) + '</div>';
+      }
+      keep += verseHTML(s.verses[0]) + '</div>';
+      parts.push(keep);
+      for (var vi = 1; vi < s.verses.length; vi++) {
+        parts.push(verseHTML(s.verses[vi]));
+      }
+    });
+  });
+
+  parts.push('<div class="colophon">' +
+    '<div class="end-cross">&#10016;</div>' +
+    '<div class="end-line">Here endeth the Psalter.</div>' +
+    '<p class="end-note">In months of one and thirty days, the Psalms of the ' +
+    'thirtieth day are read again upon the one and thirtieth.</p>' +
+    '</div>');
+
+  document.write(parts.join(''));
+})();
+</script>
+</body>
+</html>

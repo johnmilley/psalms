@@ -11,13 +11,51 @@ var ORD = [null, 'First', 'Second', 'Third', 'Fourth', 'Fifth', 'Sixth',
 
 var REDUCED = matchMedia('(prefers-reduced-motion: reduce)').matches;
 
+/* ——— reader preferences ——— */
+
+var SIZES = [0.88, 1, 1.14, 1.3];
+var prefs = { layout: 2, size: 1, mode: 'day' };
+try {
+  var sp = JSON.parse(localStorage.getItem('psalmsofdavid:prefs') || 'null');
+  if (sp) {
+    if (sp.layout === 1 || sp.layout === 2) prefs.layout = sp.layout;
+    if (SIZES[sp.size] != null) prefs.size = sp.size;
+    if (sp.mode === 'night' || sp.mode === 'day') prefs.mode = sp.mode;
+  }
+} catch (e) { /* first opening */ }
+
+function savePrefs() {
+  try { localStorage.setItem('psalmsofdavid:prefs', JSON.stringify(prefs)); }
+  catch (e) { /* sandboxed */ }
+}
+
+/* before the first paint, so the lamp is already low */
+document.body.classList.toggle('night', prefs.mode === 'night');
+
 function esc(s) { return s.replace(/&/g, '&amp;').replace(/</g, '&lt;'); }
 
 /* ——— compose the book ——— */
 
 function verseHTML(v) {
-  var h = '<p class="v"><span class="vn">' + v.v + '</span>' + esc(v.a);
-  if (v.b) h += ' <span class="st">:</span> ' + esc(v.b);
+  var d = v.v >= 100 ? 3 : v.v >= 10 ? 2 : 1;
+  var h;
+  if (v.v === 1) {
+    /* the versal word: first word in capitals; if it is a lone "O",
+       the word after it as well */
+    var first = v.a.match(/^\S+/)[0];
+    var capsLen = first.length;
+    if (first.replace(/[^A-Za-z]/g, '').length === 1) {
+      var next = v.a.slice(capsLen).match(/^\s+\S+/);
+      if (next) capsLen += next[0].length;
+    }
+    h = '<p class="v v1"><span class="ha"><span class="dcap">' + esc(v.a.charAt(0)) +
+      '</span><span class="dcw">' + esc(v.a.slice(1, capsLen)) + '</span>' +
+      esc(v.a.slice(capsLen));
+  } else {
+    h = '<p class="v d' + d + '"><span class="ha"><span class="vn">' + v.v + '.</span>' + esc(v.a);
+  }
+  if (v.b) h += '&nbsp;<span class="st">:</span></span><span class="hb">' + esc(v.b) + '</span>';
+  else h += '</span>';
   return h + '</p>';
 }
 
@@ -104,6 +142,8 @@ var etip = document.getElementById('etip');
 var gotoBox = document.getElementById('goto');
 var gotoNum = document.getElementById('gotoNum');
 var hint = document.getElementById('hint');
+var opts = document.getElementById('opts');
+var optBtn = document.getElementById('optBtn');
 
 var L = makePage(document.getElementById('pageL'));
 var R = makePage(document.getElementById('pageR'));
@@ -112,7 +152,7 @@ var B = makePage(leaf.querySelector('.face.back'));
 
 /* ——— geometry & pagination ——— */
 
-var solo = false, colStep = 0, pages = 1, maxLeft = 0, cur = 0, dest = 0;
+var solo = false, single = false, colStep = 0, pages = 1, maxLeft = 0, cur = 0, dest = 0;
 var frontPages = 5, tablePer = 0, builtPer = 0;
 var heads = [], firstOn = [], startPage = {};
 var animating = false, pending = null, flipDone = null;
@@ -126,31 +166,39 @@ document.body.appendChild(saProbe);
 
 function computeGeometry() {
   var vw = innerWidth, vh = innerHeight;
-  solo = vw < 820;
+  /* a turned phone stays a single page — the book never re-binds in the hand */
+  solo = vw < 820 || Math.min(vw, vh) < 560;
+  single = solo || prefs.layout === 1;
   document.body.classList.toggle('solo', solo);
+  document.body.classList.toggle('onepage', single && !solo);
   hint.innerHTML = solo
-    ? 'swipe or tap the sides&emsp;&middot;&emsp;riffle the bar below'
+    ? 'swipe or tap the sides&emsp;&middot;&emsp;riffle the bar&emsp;&middot;&emsp;Aa&ensp;options'
     : '&#8592;&#8201;&#8594;&ensp;turn the page&emsp;&middot;&emsp;riffle the ' +
-      'page&#8209;edge&emsp;&middot;&emsp;type a psalm number&emsp;&middot;&emsp;T&ensp;the table';
-  var pw, ph;
+      'page&#8209;edge&emsp;&middot;&emsp;type a psalm number&emsp;&middot;&emsp;T&ensp;the table' +
+      '&emsp;&middot;&emsp;Home&#8202;/&#8202;End&ensp;the covers';
+  var pw, ph, fs, padh;
   if (solo) {
     /* full-bleed: the page is the screen, save a strip for the riffle bar */
     var sa = getComputedStyle(saProbe);
     var insets = (parseFloat(sa.paddingTop) || 0) + (parseFloat(sa.paddingBottom) || 0);
     pw = vw;
     ph = Math.max(300, vh - 60 - insets);
+    /* the text block keeps a book page's portrait proportion in either
+       orientation: never wider than 0.68 of the height it stands in */
+    var tpw = Math.min(pw, Math.round(ph * 0.68));
+    fs = Math.min(18, Math.max(14.5, tpw / 24)) * SIZES[prefs.size];
+    padh = Math.round((pw - tpw) / 2) + Math.max(18, Math.round(tpw * 0.07));
   } else {
     var availH = Math.max(360, vh - 112);
     var availW = vw - 96;
     ph = Math.min(availH, 1020);
     pw = Math.round(ph * 0.68);
-    var maxPw = Math.floor(availW / 2);
+    var maxPw = single ? availW : Math.floor(availW / 2);
     if (pw > maxPw) { pw = maxPw; ph = Math.min(availH, Math.round(pw / 0.68)); }
     pw = Math.max(pw, 250);
+    fs = Math.min(19, Math.max(13, pw / 25.5)) * SIZES[prefs.size];
+    padh = Math.round(pw * 0.115);
   }
-  var fs = solo ? Math.min(18, Math.max(14.5, pw / 24))
-                : Math.min(19, Math.max(13, pw / 25.5));
-  var padh = solo ? Math.max(18, Math.round(pw * 0.07)) : Math.round(pw * 0.115);
   var porttop = solo ? Math.round(fs * 3.4) : Math.round(ph * 0.105);
   var padbot = solo ? Math.round(fs * 2.8) : Math.round(ph * 0.094);
   var colw = pw - 2 * padh;
@@ -184,7 +232,7 @@ function paginate() {
   void R.flow.offsetWidth;
   var gap = colStep - R.flow.clientWidth;
   pages = Math.max(1, Math.round((R.port.scrollWidth + gap) / colStep));
-  maxLeft = solo ? pages - 1 : (pages - 1) - ((pages - 1) % 2);
+  maxLeft = single ? pages - 1 : (pages - 1) - ((pages - 1) % 2);
 
   var starts = [];
   startPage = {};
@@ -236,14 +284,14 @@ function labelFor(p) {
 /* ——— painting & turning ——— */
 
 function paint() {
-  if (solo) {
+  if (single) {
     setPage(R, cur);
   } else {
     setPage(L, cur);
     setPage(R, cur + 1);
   }
   ribbon.style.left = 'calc(' + (maxLeft ? (cur / maxLeft) * 100 : 0).toFixed(3) + '% - 2px)';
-  var n = firstOn[cur] || (!solo && firstOn[cur + 1]) || 0;
+  var n = firstOn[cur] || (!single && firstOn[cur + 1]) || 0;
   try {
     localStorage.setItem('psalmsofdavid:at', JSON.stringify({ page: cur, ps: n }));
     history.replaceState(null, '', n ? location.pathname + '#' + n : location.pathname);
@@ -252,7 +300,7 @@ function paint() {
 
 function snap(p) {
   p = Math.max(0, Math.min(p, maxLeft));
-  if (!solo) p -= p % 2;
+  if (!single) p -= p % 2;
   return p;
 }
 
@@ -304,7 +352,7 @@ function setSpread(p, anim) {
   if (p === dest) return;
   dest = p;
   if (animating) { pending = p; return; }
-  if (anim && !solo && !REDUCED && Math.abs(p - cur) === 2) flip(p);
+  if (anim && !single && !REDUCED && Math.abs(p - cur) === 2) flip(p);
   else jump(p);
 }
 
@@ -331,10 +379,10 @@ function layout(preserveAnchor) {
 /* ——— input ——— */
 
 document.getElementById('zoneNext').addEventListener('click', function () {
-  setSpread(dest + (solo ? 1 : 2), true);
+  setSpread(dest + (single ? 1 : 2), true);
 });
 document.getElementById('zonePrev').addEventListener('click', function () {
-  setSpread(dest - (solo ? 1 : 2), true);
+  setSpread(dest - (single ? 1 : 2), true);
 });
 
 /* taps: table entries everywhere; on the small screen the side thirds
@@ -342,6 +390,7 @@ document.getElementById('zonePrev').addEventListener('click', function () {
 var swallowClick = false;
 book.addEventListener('click', function (e) {
   if (swallowClick) { swallowClick = false; return; }
+  if (opts.classList.contains('on')) return; /* the tap just closes the card */
   var a = e.target.closest && e.target.closest('.tent');
   if (a) { e.preventDefault(); gotoPsalm(+a.dataset.ps, false); return; }
   if (!solo) return;
@@ -350,6 +399,46 @@ book.addEventListener('click', function (e) {
   if (x < 0.35) setSpread(dest - 1, true);
   else if (x > 0.65) setSpread(dest + 1, true);
 });
+
+/* ——— options ——— */
+
+function reflectPrefs() {
+  opts.querySelectorAll('.o-seg').forEach(function (seg) {
+    var on = String(prefs[seg.dataset.set]);
+    seg.querySelectorAll('a').forEach(function (a) {
+      a.classList.toggle('on', a.dataset.v === on);
+    });
+  });
+}
+
+function setPref(k, v) {
+  if (k === 'layout') prefs.layout = +v;
+  else if (k === 'size') prefs.size = +v;
+  else if (k === 'mode') prefs.mode = v;
+  savePrefs();
+  document.body.classList.toggle('night', prefs.mode === 'night');
+  reflectPrefs();
+  if (k !== 'mode') layout(true);
+}
+
+function toggleOpts(force) {
+  var on = force != null ? force : !opts.classList.contains('on');
+  if (on) reflectPrefs();
+  opts.classList.toggle('on', on);
+  optBtn.classList.toggle('on', on);
+}
+
+optBtn.addEventListener('click', function (e) {
+  e.stopPropagation();
+  toggleOpts();
+  wake();
+});
+opts.addEventListener('click', function (e) {
+  e.stopPropagation();
+  var a = e.target.closest && e.target.closest('a[data-v]');
+  if (a) setPref(a.parentNode.dataset.set, a.dataset.v);
+});
+document.addEventListener('click', function () { toggleOpts(false); });
 
 /* keyboard */
 var gotoOpen = false, gotoVal = '';
@@ -377,7 +466,7 @@ document.addEventListener('keydown', function (e) {
     e.preventDefault();
     return;
   }
-  var step = solo ? 1 : 2;
+  var step = single ? 1 : 2;
   switch (e.key) {
     case 'ArrowRight': case 'PageDown': case ' ':
       setSpread(dest + step * (e.shiftKey ? 10 : 1), !e.repeat && !e.shiftKey);
@@ -388,6 +477,16 @@ document.addEventListener('keydown', function (e) {
     case 'Home': setSpread(0, false); e.preventDefault(); break;
     case 'End': setSpread(maxLeft, false); e.preventDefault(); break;
     case 't': case 'T': setSpread(2, true); break;
+    case 'o': case 'O': toggleOpts(); break;
+    case 'n': case 'N':
+      setPref('mode', prefs.mode === 'night' ? 'day' : 'night'); break;
+    case 'd': case 'D':
+      if (!solo) setPref('layout', prefs.layout === 2 ? 1 : 2); break;
+    case '-': case '_':
+      if (prefs.size > 0) setPref('size', prefs.size - 1); break;
+    case '+': case '=':
+      if (prefs.size < SIZES.length - 1) setPref('size', prefs.size + 1); break;
+    case 'Escape': toggleOpts(false); break;
     default:
       if (e.key >= '1' && e.key <= '9') openGoto(e.key);
   }
@@ -401,7 +500,7 @@ addEventListener('wheel', function (e) {
   var d = Math.abs(e.deltaX) > Math.abs(e.deltaY) ? e.deltaX : e.deltaY;
   if (Math.abs(d) < 4) return;
   lastWheel = now;
-  setSpread(dest + (d > 0 ? 1 : -1) * (solo ? 1 : 2), true);
+  setSpread(dest + (d > 0 ? 1 : -1) * (single ? 1 : 2), true);
 }, { passive: true });
 
 /* touch swipe across the book */
@@ -418,7 +517,7 @@ book.addEventListener('pointerup', function (e) {
   touchX = touchY = null;
   if (Math.abs(dx) > 44 && Math.abs(dx) > Math.abs(dy)) {
     swallowClick = true;
-    setSpread(dest + (dx < 0 ? 1 : -1) * (solo ? 1 : 2), true);
+    setSpread(dest + (dx < 0 ? 1 : -1) * (single ? 1 : 2), true);
   }
 });
 book.addEventListener('pointercancel', function () { touchX = touchY = null; });
@@ -480,21 +579,20 @@ addEventListener('hashchange', function () {
 
 /* ——— begin ——— */
 
-/* capture before the first paint rewrites the URL */
+/* capture before the first paint rewrites the URL and the bookmark */
 var OPENED_AT = location.hash.match(/^#(\d{1,3})$/) ||
   location.search.match(/[?&]ps=(\d{1,3})/);
+var SAVED_AT = null;
+try { SAVED_AT = JSON.parse(localStorage.getItem('psalmsofdavid:at') || 'null'); }
+catch (e) { /* first opening */ }
 
 layout(false);
 
 (function restore() {
   if (OPENED_AT) { gotoPsalm(+OPENED_AT[1], false); return; }
-  try {
-    var saved = JSON.parse(localStorage.getItem('psalmsofdavid:at') || 'null');
-    if (saved) {
-      if (saved.ps && startPage[saved.ps] != null) jump(startPage[saved.ps]);
-      else jump(saved.page || 0);
-    }
-  } catch (e) { /* first opening */ }
+  if (!SAVED_AT) return;
+  if (SAVED_AT.ps && startPage[SAVED_AT.ps] != null) jump(startPage[SAVED_AT.ps]);
+  else jump(SAVED_AT.page || 0);
 })();
 
 /* re-measure once the type itself has arrived; unless the reader has

@@ -24,10 +24,25 @@
     <div class="zone prev" id="zonePrev" title="Turn back"></div>
     <div class="zone next" id="zoneNext" title="Turn the page"></div>
   </div>
-  <div id="edge" title="Riffle through the Psalter"><i id="ribbon"></i></div>
+  <div id="tray">
+    <div id="edge" title="Riffle through the Psalter"><i id="ribbon"></i></div>
+    <button id="optBtn" title="Options" aria-label="Options">Aa</button>
+  </div>
   <div id="etip"></div>
+  <div id="opts">
+    <div class="o-row o-layout"><span class="o-label">Pages</span>
+      <span class="o-seg" data-set="layout"><a data-v="2">Two</a><a data-v="1">One</a></span>
+      <span class="o-kbd">D</span></div>
+    <div class="o-row"><span class="o-label">Type</span>
+      <span class="o-seg o-size" data-set="size"><a data-v="0">A</a><a data-v="1">A</a><a data-v="2">A</a><a data-v="3">A</a></span>
+      <span class="o-kbd">&#8722;&ensp;+</span></div>
+    <div class="o-row"><span class="o-label">Light</span>
+      <span class="o-seg" data-set="mode"><a data-v="day">Day</a><a data-v="night">Night</a></span>
+      <span class="o-kbd">N</span></div>
+    <div class="o-row o-pdf"><a href="psalms.pdf" download>The Psalter as a PDF&ensp;&#8595;</a></div>
+  </div>
   <div id="goto"><span class="g-label">Psalm</span><span class="g-num" id="gotoNum">&#8202;</span></div>
-  <div id="hint">&#8592;&#8201;&#8594;&ensp;turn the page&emsp;&middot;&emsp;riffle the page&#8209;edge&emsp;&middot;&emsp;type a psalm number&emsp;&middot;&emsp;T&ensp;the table</div>
+  <div id="hint">&#8592;&#8201;&#8594;&ensp;turn the page&emsp;&middot;&emsp;riffle the page&#8209;edge&emsp;&middot;&emsp;type a psalm number&emsp;&middot;&emsp;T&ensp;the table&emsp;&middot;&emsp;Home&#8202;/&#8202;End&ensp;the covers</div>
 </main>
 <noscript><p style="color:#d8cfae;text-align:center;font-family:Georgia,serif;margin-top:40vh">This book is turned by hand &mdash; please enable JavaScript.</p></noscript>
 <script src="psalms.js"></script>
