@@ -291,11 +291,20 @@ function paint() {
     setPage(R, cur + 1);
   }
   ribbon.style.left = 'calc(' + (maxLeft ? (cur / maxLeft) * 100 : 0).toFixed(3) + '% - 2px)';
-  var n = firstOn[cur] || (!single && firstOn[cur + 1]) || 0;
-  try {
-    localStorage.setItem('psalmsofdavid:at', JSON.stringify({ page: cur, ps: n }));
-    history.replaceState(null, '', n ? location.pathname + '#' + n : location.pathname);
-  } catch (e) { /* sandboxed */ }
+  schedulePersist();
+}
+
+/* the bookmark and the URL are slow to write; save once the riffle settles */
+var persistTimer = null;
+function schedulePersist() {
+  clearTimeout(persistTimer);
+  persistTimer = setTimeout(function () {
+    var n = firstOn[cur] || (!single && firstOn[cur + 1]) || 0;
+    try {
+      localStorage.setItem('psalmsofdavid:at', JSON.stringify({ page: cur, ps: n }));
+      history.replaceState(null, '', n ? location.pathname + '#' + n : location.pathname);
+    } catch (e) { /* sandboxed */ }
+  }, 180);
 }
 
 function snap(p) {
@@ -522,37 +531,48 @@ book.addEventListener('pointerup', function (e) {
 });
 book.addEventListener('pointercancel', function () { touchX = touchY = null; });
 
-/* fore-edge riffle */
+/* fore-edge riffle — the bar is measured once per gesture and the moves
+   are folded into animation frames, so the riffle keeps pace with the thumb */
 var riffling = false;
+var edgeRect = null, riffleX = 0, rifflePending = false;
 
-function edgePage(e) {
-  var r = edge.getBoundingClientRect();
-  var f = Math.min(1, Math.max(0, (e.clientX - r.left) / r.width));
+function edgePage(x) {
+  var f = Math.min(1, Math.max(0, (x - edgeRect.left) / edgeRect.width));
   return Math.round(f * maxLeft);
 }
-function showTip(e) {
-  var p = snap(edgePage(e));
+function showTip(x) {
+  var p = snap(edgePage(x));
   etip.textContent = labelFor(p) || labelFor(p + 1) || '';
-  var r = edge.getBoundingClientRect();
-  etip.style.left = e.clientX + 'px';
-  etip.style.top = r.top + 'px';
+  etip.style.left = x + 'px';
+  etip.style.top = edgeRect.top + 'px';
   etip.classList.add('on');
+}
+function riffleFrame() {
+  rifflePending = false;
+  if (!edgeRect) return;
+  if (riffling) setSpread(edgePage(riffleX), false);
+  showTip(riffleX);
 }
 edge.addEventListener('pointerdown', function (e) {
   riffling = true;
+  edgeRect = edge.getBoundingClientRect();
   edge.setPointerCapture(e.pointerId);
-  setSpread(edgePage(e), false);
-  showTip(e);
+  riffleX = e.clientX;
+  riffleFrame();
   e.preventDefault();
 });
 edge.addEventListener('pointermove', function (e) {
-  if (riffling) setSpread(edgePage(e), false);
-  showTip(e);
+  if (!edgeRect) edgeRect = edge.getBoundingClientRect();
+  riffleX = e.clientX;
+  if (!rifflePending) {
+    rifflePending = true;
+    requestAnimationFrame(riffleFrame);
+  }
 });
 edge.addEventListener('pointerup', function () { riffling = false; });
 edge.addEventListener('pointercancel', function () { riffling = false; });
 edge.addEventListener('pointerleave', function () {
-  if (!riffling) etip.classList.remove('on');
+  if (!riffling) { etip.classList.remove('on'); edgeRect = null; }
 });
 
 /* hint fades when the reader settles */
@@ -568,6 +588,7 @@ wake();
 /* resize */
 var resizeTimer = null;
 addEventListener('resize', function () {
+  edgeRect = null;
   clearTimeout(resizeTimer);
   resizeTimer = setTimeout(function () { layout(true); }, 140);
 });
