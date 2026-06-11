@@ -159,6 +159,7 @@ body.solo #gutter, body.onepage #gutter { display: none; }
   color: var(--ink-soft);
   white-space: nowrap;
   overflow: hidden;
+  text-transform: uppercase;
 }
 
 .folio {
@@ -207,10 +208,11 @@ body.solo #gutter, body.onepage #gutter { display: none; }
 
 .psn {
   text-align: center;
+  text-transform: uppercase;
   color: var(--red);
   font-weight: 500;
   font-size: 1.04em;
-  letter-spacing: 0.18em;
+  letter-spacing: 0.05em;
   font-feature-settings: 'smcp' 1, 'onum' 1;
   margin: 1.7em 0 0.15em;
 }
